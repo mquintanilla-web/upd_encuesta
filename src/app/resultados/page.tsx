@@ -63,7 +63,8 @@ export default function ResultadosPage() {
       <header className="border-b border-mist bg-white">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3 sm:px-6">
           <Image src="/logos/upd.svg" alt="UPD" width={150} height={48} className="h-10 w-auto" unoptimized priority />
-          <h1 className="text-lg font-medium text-primary sm:text-xl">Resultados I03</h1>
+          <h1 className="hidden text-lg font-medium text-primary sm:block sm:text-xl">Resultados I03</h1>
+          <Image src="/logos/anii.png" alt="ANII" width={249} height={50} className="h-7 w-auto" unoptimized priority />
         </div>
       </header>
 

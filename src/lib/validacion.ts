@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { CONDICIONES_ITEMS, CRITERIOS, MODALIDADES, MOMENTOS, SIN_NA } from "./criterios";
+import { CONDICIONES_ITEMS, CRITERIOS, MODALIDADES, MOMENTOS, OPCIONES_CONDICION, SIN_NA } from "./criterios";
 
 const texto = (max = 2000) => z.string().trim().max(max);
 const hora = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Hora no válida");
@@ -32,7 +32,7 @@ export const observacionSchema = z
     hora_cierre: hora,
     modalidad: z.enum(MODALIDADES),
     tarea_resultado: texto().min(1, "Requerido"),
-    metodologia_recurso: texto().min(1, "Requerido"),
+    metodologia_recurso: texto(), // "si lo hubo": puede ir vacío
     scores: z.array(score).length(CRITERIOS.length, "Faltan criterios"),
     condiciones: z
       .array(
@@ -58,6 +58,9 @@ export const observacionSchema = z
     const vistos = new Set(o.scores.map((s) => s.criterio));
     if (vistos.size !== CRITERIOS.length)
       ctx.addIssue({ code: "custom", path: ["scores"], message: "Criterios repetidos o faltantes" });
+    for (const [i, c] of o.condiciones.entries())
+      if (!OPCIONES_CONDICION[c.item].includes(c.opcion))
+        ctx.addIssue({ code: "custom", path: ["condiciones", i, "opcion"], message: "Opción no válida" });
     if (o.hora_cierre <= o.hora_inicio)
       ctx.addIssue({ code: "custom", path: ["hora_cierre"], message: "Debe ser posterior al inicio" });
   });

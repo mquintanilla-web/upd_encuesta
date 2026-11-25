@@ -173,8 +173,10 @@ export function Evolucion({ filas }: { filas: Resultados["evolucionDocente"] }) 
 
 export function Promedios({ filas, clave }: { filas: Resultados["modalidad"]; clave: string }) {
   const corto: Record<string, string> = {
-    "Con limitaciones": "Limitada",
-    "Sin conectividad": "Sin acceso",
+    "Adecuados": "Adecuada",
+    "Con limitaciones parciales": "Parcial",
+    "Con limitaciones que afectaron la sesión": "Afectó",
+    "Participación irregular": "Irregular",
     "Favorece la participación": "Favorece",
     "Limita la participación": "Limita",
   };

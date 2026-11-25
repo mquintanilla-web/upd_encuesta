@@ -91,16 +91,16 @@ async function main() {
   for (const v of lista) {
     const { d, cat, m } = v;
     const conectividad = faker.helpers.weightedArrayElement([
-      { weight: cat.modalidad === "Virtual" ? 40 : 18, value: "Con limitaciones" },
-      { weight: cat.modalidad === "Virtual" ? 5 : 2, value: "Sin conectividad" },
-      { weight: 100, value: "Adecuada" },
+      { weight: cat.modalidad === "Virtual" ? 40 : 18, value: "Con limitaciones parciales" },
+      { weight: cat.modalidad === "Virtual" ? 8 : 3, value: "Con limitaciones que afectaron la sesión" },
+      { weight: 100, value: "Adecuados" },
     ]);
     const clima = faker.helpers.weightedArrayElement([
       { weight: 20, value: "Limita la participación" },
-      { weight: 25, value: "Neutro" },
+      { weight: 25, value: "Participación irregular" },
       { weight: 55, value: "Favorece la participación" },
     ]);
-    const limConn = conectividad !== "Adecuada";
+    const limConn = conectividad !== "Adecuados";
     const limClima = clima === "Limita la participación";
 
     const usaIA = faker.number.float({ min: 0, max: 1 }) <
@@ -149,7 +149,7 @@ async function main() {
         item,
         opcion:
           item === "4.1" ? clima : item === "4.3" ? conectividad : faker.helpers.arrayElement(OPCIONES_CONDICION[item]),
-        origen: faker.helpers.arrayElement(["Observado", "Reportado por el docente"]),
+        origen: item === "4.2" ? faker.helpers.arrayElement(["Pedagógico", "Técnico", "Institucional", "Externo"]) : undefined,
         descripcion: faker.lorem.sentence(),
       })),
       respuestas: [1, 2, 3, 4, 5, 6].map((pregunta) => ({ pregunta, respuesta: faker.lorem.sentences(2) })),
