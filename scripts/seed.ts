@@ -81,7 +81,7 @@ async function main() {
     visitas.push({ ...c, m: "V1" });
     visitas.push({ ...c, m: "V2" });
   }
-  let sobrantes = visitas.length - TOTAL;
+  const sobrantes = visitas.length - TOTAL;
   const v2 = faker.helpers.shuffle(visitas.filter((v) => v.m === "V2"));
   const descartar = new Set(v2.slice(0, Math.max(0, sobrantes)));
   const lista = visitas.filter((v) => !descartar.has(v)).slice(0, TOTAL);
