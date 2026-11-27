@@ -37,6 +37,9 @@ export async function POST(req: NextRequest) {
     return Response.json({ ok: false, campos }, { status: 422 });
   }
 
+  if (!parsed.data.firma)
+    return Response.json({ ok: false, campos: { firma: "Firma requerida" } }, { status: 422 });
+
   // Bot: el campo trampa vino lleno. Se responde como éxito sin guardar.
   if (parsed.data.sitio_web) return Response.json({ ok: true });
 

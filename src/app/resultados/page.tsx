@@ -69,7 +69,7 @@ export default function ResultadosPage() {
       </header>
 
       <main className="mx-auto max-w-6xl space-y-4 px-4 py-5 sm:px-6">
-        <div className="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_1fr_1fr_auto]">
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_1fr_1fr_auto_auto]">
           <select aria-label="IES" className={selectCls} value={f.ies} onChange={set("ies")}>
             <option value="">Todas las IES</option>
             {ies.map((i) => (
@@ -84,6 +84,15 @@ export default function ResultadosPage() {
             <option value="">Todas las modalidades</option>
             {MODALIDADES.map((m) => <option key={m}>{m}</option>)}
           </select>
+          <a
+            href={`/api/pdf${qs ? `?${qs}` : ""}`}
+            className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-primary bg-white px-4 text-sm font-medium text-primary transition hover:bg-mist/50 active:scale-[.98]"
+          >
+            <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8zM14 3v5h5" />
+            </svg>
+            Exportar PDF
+          </a>
           <a
             href={`/api/exportar${qs ? `?${qs}` : ""}`}
             className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-primary px-4 text-sm font-medium text-white transition hover:bg-primary-dark active:scale-[.98]"
@@ -112,20 +121,20 @@ export default function ResultadosPage() {
             ) : (
               <>
                 <div className="grid items-start gap-4 lg:grid-cols-2">
-                  <Panel titulo="Promedio por criterio"><PorCriterio filas={datos.porCriterio} /></Panel>
-                  <Panel titulo="Niveles por criterio"><Distribucion filas={datos.distribucion} /></Panel>
-                  <Panel titulo="Clasificación por IES"><ClasificacionIes filas={datos.clasificacionIes} /></Panel>
-                  <Panel titulo="Evolución por docente"><Evolucion filas={datos.evolucionDocente} /></Panel>
+                  <Panel titulo="Promedio por criterio" info="Promedio del nivel (1 a 4) que se dio a cada criterio, separado en V1 y V2. Se calcula con las observaciones que valoraron el criterio, sin contar NO ni NA."><PorCriterio filas={datos.porCriterio} /></Panel>
+                  <Panel titulo="Niveles por criterio" info="Porcentaje de observaciones que quedaron en cada nivel (1 a 4) de cada criterio."><Distribucion filas={datos.distribucion} /></Panel>
+                  <Panel titulo="Clasificación por IES" info="Cantidad de observaciones por resultado, calculado con los criterios 2.1 a 2.4. Cada barra es una IES. Pase el cursor sobre la barra para ver el nombre completo."><ClasificacionIes filas={datos.clasificacionIes} /></Panel>
+                  <Panel titulo="Evolución por docente" info="Compara el promedio general de cada docente entre V1 y V2. Mejoró o bajó si el cambio supera 0.1 puntos. Solo cuenta docentes con ambas visitas."><Evolucion filas={datos.evolucionDocente} /></Panel>
                 </div>
 
                 <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-                  <Panel titulo="O2 según conectividad"><Promedios filas={datos.correlaciones.conectividad} clave="opcion" /></Panel>
-                  <Panel titulo="O2 según clima"><Promedios filas={datos.correlaciones.clima} clave="opcion" /></Panel>
-                  <Panel titulo="Promedio por modalidad"><Promedios filas={datos.modalidad} clave="modalidad" /></Panel>
-                  <Panel titulo="Uso de IA por modalidad"><UsoIa filas={datos.usoIa} /></Panel>
+                  <Panel titulo="O2 según conectividad" info="Promedio de los criterios 2.1 a 2.4 según lo registrado en 4.3, conectividad y acceso a dispositivos o plataformas."><Promedios filas={datos.correlaciones.conectividad} clave="opcion" /></Panel>
+                  <Panel titulo="O2 según clima" info="Promedio de los criterios 2.1 a 2.4 según lo registrado en 4.1, clima de aula y participación."><Promedios filas={datos.correlaciones.clima} clave="opcion" /></Panel>
+                  <Panel titulo="Promedio por modalidad" info="Promedio de todos los criterios valorados, según la modalidad de observación."><Promedios filas={datos.modalidad} clave="modalidad" /></Panel>
+                  <Panel titulo="Uso de IA por modalidad" info="Porcentaje de observaciones donde se valoró algún criterio de O3. Si los cuatro quedaron en NA, se cuenta como sin IA."><UsoIa filas={datos.usoIa} /></Panel>
                 </div>
 
-                <Panel titulo="IES por criterio"><MapaCalor filas={datos.heatmap} /></Panel>
+                <Panel titulo="IES por criterio" info="Mapa de calor. Cada celda es el promedio de un criterio (columna) en una IES (fila). Más oscuro, mayor nivel. Si hay menos de 3 observaciones, la celda queda vacía."><MapaCalor filas={datos.heatmap} /></Panel>
               </>
             )}
 

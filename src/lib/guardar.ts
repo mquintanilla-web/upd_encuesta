@@ -27,9 +27,9 @@ export async function guardarObservacion(o: ObservacionInput) {
        INSERT INTO observations
          (aval_etico, ies_id, codigo_docente, codigo_mentor, asignatura, codigo_catedra, momento,
           fecha, hora_inicio, hora_cierre, duracion_min, codigo_caso, modalidad, tarea_resultado,
-          metodologia_recurso, evidencia_aula, comparacion_v1_v2, diferencias, sintesis, clasificacion)
+          metodologia_recurso, evidencia_aula, comparacion_v1_v2, diferencias, sintesis, clasificacion, firma)
        SELECT true, i.id, $2, $3, $4, $5, $6, $7::date, $8::time, $9::time, $10, $11, $12, $13,
-              $14, $15, $16, $17, $18::jsonb, $19
+              $14, $15, $16, $17, $18::jsonb, $19, $23
        FROM ies i WHERE i.codigo = $1
        RETURNING id
      ), s AS (
@@ -69,6 +69,7 @@ export async function guardarObservacion(o: ObservacionInput) {
       JSON.stringify(scores),
       JSON.stringify(o.condiciones),
       JSON.stringify(o.respuestas),
+      o.firma ?? null,
     ]
   );
   if (!rows.length) return null; // IES inexistente

@@ -91,9 +91,9 @@ export async function calcularResultados(filtros: Filtros) {
                 ))::int con_ia
          ${BASE} ${FILTRO} GROUP BY 1 ORDER BY 1`, f),
       sql.query(
-        `SELECT i.codigo ies, s.criterio, round(avg(s.nivel)::numeric, 2) promedio, count(*)::int n
+        `SELECT i.codigo ies, i.nombre, s.criterio, round(avg(s.nivel)::numeric, 2) promedio, count(*)::int n
          ${BASE} JOIN scores s ON s.observation_id = o.id AND s.estado = 'valor'
-         ${FILTRO} GROUP BY 1, 2 ORDER BY 1, 2`, f),
+         ${FILTRO} GROUP BY 1, 2, 3 ORDER BY 1, 3`, f),
       sql.query(
         `SELECT c.item, c.opcion, count(*)::int n
          ${BASE} JOIN condiciones c ON c.observation_id = o.id

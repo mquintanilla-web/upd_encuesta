@@ -51,6 +51,8 @@ export const observacionSchema = z
     comparacion_v1_v2: texto().optional(),
     diferencias: texto().optional(),
     sintesis: z.record(z.string(), z.string().max(4000)).optional(),
+    // Firma dibujada al iniciar (PNG en base64). Obligatoria en el envío público; ver la ruta.
+    firma: z.string().startsWith("data:image/png;base64,", "Firma no válida").max(250_000).optional(),
     // Campo trampa contra bots: debe llegar vacío.
     sitio_web: z.string().optional(),
   })

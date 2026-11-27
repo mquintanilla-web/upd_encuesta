@@ -12,6 +12,10 @@ import {
   YAxis,
 } from "recharts";
 import type { Resultados } from "@/lib/resultados";
+import { O1, O2, O3 } from "@/lib/instrumento";
+
+const NOMBRES = new Map([...O1.criterios, ...O2.criterios, ...O3.criterios].map((c) => [c.id, c.nombre]));
+const conNombre = (id: unknown) => (NOMBRES.get(String(id)) ? `${id} · ${NOMBRES.get(String(id))}` : String(id));
 
 export const COLORES = {
   v1: "#9db9cf",
@@ -34,10 +38,32 @@ const TOOLTIP = {
   cursor: { fill: "#dde6ed55" },
 };
 
-export function Panel({ titulo, children, className = "" }: { titulo: string; children: ReactNode; className?: string }) {
+export function Panel({ titulo, info, children, className = "" }: { titulo: string; info?: string; children: ReactNode; className?: string }) {
   return (
-    <section className={`rounded-2xl border border-mist bg-white p-4 sm:p-5 ${className}`}>
-      <h2 className="mb-3 text-sm font-medium text-ink/70">{titulo}</h2>
+    <section className={`relative rounded-2xl border border-mist bg-white p-4 sm:p-5 ${className}`}>
+      <h2 className="mb-3 flex items-center gap-1.5 text-sm font-medium text-ink/70">
+        {titulo}
+        {info && (
+          <span className="group">
+            <button
+              type="button"
+              aria-label={`Qué muestra: ${titulo}`}
+              className="flex h-5 w-5 items-center justify-center rounded-full text-ink/40 transition hover:bg-mist hover:text-primary focus:bg-mist focus:text-primary focus:outline-none"
+            >
+              <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                <circle cx="12" cy="12" r="9" />
+                <path d="M12 11v5m0-8h.01" />
+              </svg>
+            </button>
+            <span
+              role="tooltip"
+              className="pointer-events-none absolute inset-x-4 top-12 z-20 rounded-xl bg-ink p-3 text-xs font-normal leading-relaxed text-white opacity-0 shadow-lg transition-opacity duration-150 group-focus-within:opacity-100 group-hover:opacity-100 sm:inset-x-5"
+            >
+              {info}
+            </span>
+          </span>
+        )}
+      </h2>
       {children}
     </section>
   );
@@ -87,7 +113,7 @@ export function PorCriterio({ filas }: { filas: Resultados["porCriterio"] }) {
         <CartesianGrid vertical={false} stroke="#dde6ed" />
         <XAxis dataKey="criterio" tick={EJE} tickLine={false} axisLine={false} />
         <YAxis domain={[0, 4]} ticks={[0, 1, 2, 3, 4]} tick={EJE} tickLine={false} axisLine={false} />
-        <Tooltip {...TOOLTIP} />
+        <Tooltip {...TOOLTIP} labelFormatter={conNombre} />
         <Legend iconType="circle" wrapperStyle={{ fontSize: 12 }} />
         <Bar dataKey="V1" fill={COLORES.v1} radius={[4, 4, 0, 0]} />
         <Bar dataKey="V2" fill={COLORES.v2} radius={[4, 4, 0, 0]} />
@@ -115,7 +141,7 @@ export function Distribucion({ filas }: { filas: Resultados["distribucion"] }) {
         <CartesianGrid vertical={false} stroke="#dde6ed" />
         <XAxis dataKey="criterio" tick={EJE} tickLine={false} axisLine={false} />
         <YAxis domain={[0, 100]} ticks={[0, 25, 50, 75, 100]} unit="%" tick={EJE} tickLine={false} axisLine={false} />
-        <Tooltip {...TOOLTIP} formatter={(v) => `${v}%`} />
+        <Tooltip {...TOOLTIP} labelFormatter={conNombre} formatter={(v) => `${v}%`} />
         <Legend iconType="circle" wrapperStyle={{ fontSize: 12 }} />
         {[1, 2, 3, 4].map((n) => (
           <Bar key={n} dataKey={`Nivel ${n}`} stackId="a" fill={COLORES.niveles[n - 1]} />
@@ -126,6 +152,7 @@ export function Distribucion({ filas }: { filas: Resultados["distribucion"] }) {
 }
 
 export function ClasificacionIes({ filas }: { filas: Resultados["clasificacionIes"] }) {
+  const nombres = new Map(filas.map((f) => [f.ies, f.nombre]));
   const mapa = new Map<string, Record<string, number | string>>();
   for (const f of filas) {
     const e = mapa.get(f.ies) ?? { ies: f.ies };
@@ -138,7 +165,7 @@ export function ClasificacionIes({ filas }: { filas: Resultados["clasificacionIe
         <CartesianGrid vertical={false} stroke="#dde6ed" />
         <XAxis dataKey="ies" tick={EJE} tickLine={false} axisLine={false} />
         <YAxis tick={EJE} tickLine={false} axisLine={false} />
-        <Tooltip {...TOOLTIP} />
+        <Tooltip {...TOOLTIP} labelFormatter={(l) => nombres.get(String(l)) ?? String(l)} />
         <Legend iconType="circle" wrapperStyle={{ fontSize: 12 }} />
         {Object.entries(COLORES.clasif).map(([k, c]) => (
           <Bar key={k} dataKey={CLASIF_CORTA[k]} stackId="a" fill={c} />
@@ -215,6 +242,7 @@ export function UsoIa({ filas }: { filas: Resultados["usoIa"] }) {
 export function MapaCalor({ filas }: { filas: Resultados["heatmap"] }) {
   const criterios = [...new Set(filas.map((f) => f.criterio as string))].sort();
   const ies = [...new Set(filas.map((f) => f.ies as string))];
+  const nombreIes = new Map(filas.map((f) => [f.ies as string, f.nombre as string]));
   const celda = new Map(filas.map((f) => [`${f.ies}|${f.criterio}`, f.promedio as number | null]));
   return (
     <div className="-mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">
@@ -223,14 +251,16 @@ export function MapaCalor({ filas }: { filas: Resultados["heatmap"] }) {
           <tr>
             <th className="sticky left-0 bg-white" />
             {criterios.map((c) => (
-              <th key={c} className="px-1 pb-1 font-medium text-ink/60">{c}</th>
+              <th key={c} title={conNombre(c)} className="px-1 pb-1 font-medium text-ink/60">{c}</th>
             ))}
           </tr>
         </thead>
         <tbody>
           {ies.map((i) => (
             <tr key={i}>
-              <th className="sticky left-0 whitespace-nowrap bg-white pr-2 text-left font-medium text-ink/70">{i}</th>
+              <th title={nombreIes.get(i)} className="sticky left-0 max-w-32 truncate whitespace-nowrap bg-white pr-2 text-left font-medium text-ink/70 sm:max-w-56">
+                {nombreIes.get(i) ?? i}
+              </th>
               {criterios.map((c) => {
                 const v = celda.get(`${i}|${c}`);
                 const t = v == null ? 0 : (v - 1) / 3;
@@ -242,7 +272,7 @@ export function MapaCalor({ filas }: { filas: Resultados["heatmap"] }) {
                       background: v == null ? "#f1f5f8" : `rgba(9,72,117,${0.08 + 0.92 * t})`,
                       color: t > 0.4 ? "#fff" : "#27374d",
                     }}
-                    title={v == null ? "n < 3" : String(v)}
+                    title={v == null ? "Menos de 3 observaciones" : `${nombreIes.get(i)} · ${conNombre(c)}: ${v}`}
                   >
                     {v == null ? "—" : v.toFixed(1)}
                   </td>

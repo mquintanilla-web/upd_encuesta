@@ -6,15 +6,18 @@ export type Criterio = {
   niveles: [string, string, string, string];
   /** Admite NA (no aplica). */
   na?: boolean;
+  /** Encabezado propio que el instrumento muestra antes del criterio. */
+  antes?: { titulo: string; texto: string };
 };
 
-export type Dimension = { id: "O1" | "O2" | "O3"; titulo: string; criterios: Criterio[] };
+export type Dimension = { id: "O1" | "O2" | "O3"; titulo: string; intro?: string; criterios: Criterio[] };
 
 export const NIVELES = ["Inicial", "En desarrollo", "Competente", "Destacado"] as const;
 
 export const O1: Dimension = {
   id: "O1",
   titulo: "Metodologías activas e innovación pedagógica",
+  intro: undefined,
   criterios: [
     {
       id: "1.1",
@@ -61,7 +64,7 @@ export const O1: Dimension = {
 
 export const O2: Dimension = {
   id: "O2",
-  titulo: "Integración de metodología activa y tecnología digital",
+  titulo: "Integración de metodología activa y tecnología digital para el aprendizaje",
   criterios: [
     {
       id: "2.1",
@@ -106,6 +109,7 @@ export const O2: Dimension = {
     {
       id: "2.5",
       nombre: "Evaluación formativa y uso de evidencias",
+      antes: { titulo: "Criterio complementario de evaluación", texto: "Aplique 2.5 si la evaluación forma parte de la experiencia. Registre NA cuando no aplique." },
       na: true,
       niveles: [
         "Los recursos de evaluación utilizados no permiten recoger evidencias vinculadas con el resultado de aprendizaje.",
@@ -119,7 +123,8 @@ export const O2: Dimension = {
 
 export const O3: Dimension = {
   id: "O3",
-  titulo: "Uso pedagógico y responsable de la IA",
+  titulo: "Uso pedagógico y responsable de la inteligencia artificial (según pertinencia)",
+  intro: "Determine la aplicabilidad de cada criterio. Documente en 3.1 el uso, el límite o la decisión explícita de prescindir de IA. En 3.2, use NA si el estudiantado no trabajó con resultados de IA. Aplique 3.3 y 3.4 según las reglas y los riesgos del caso.",
   criterios: [
     {
       id: "3.1",
@@ -225,3 +230,34 @@ export const SINTESIS = [
 ] as const;
 
 export const NOTA_P = "(P) Consulte la planificación, los materiales o el diálogo.";
+
+// Encabezado y textos generales del instrumento.
+export const ENCABEZADO = {
+  proyecto:
+    "PROYECTO ANII CEIBAL TDE_1_2026_1_191933: MODELO DE MENTORÍA DOCENTE ENTRE PARES PARA LA INTEGRACIÓN EFECTIVA DE TECNOLOGÍAS DIGITALES Y METODOLOGÍAS ACTIVAS EN LA EDUCACIÓN SUPERIOR",
+  titulo: "I03. GUÍA INTEGRADA DE OBSERVACIÓN DE LA PRÁCTICA DOCENTE",
+  version: "Instrumento I03 | Versión 1.4 · Propuesta para pilotaje | Noviembre de 2026 | Aplicación común en las cinco IES participantes",
+  proposito:
+    "Documentar en V1 y V2 cómo se articulan el resultado de aprendizaje, la metodología activa y la tecnología digital para orientar acuerdos de mejora. La evaluación del aprendizaje y la IA se registran cuando corresponda.",
+  caracter:
+    "La observación es voluntaria, confidencial y formativa. El registro codificado se usa para la devolución y la investigación, conforme al consentimiento. Tiene acceso restringido y se reporta de forma agregada. Se excluye de la evaluación laboral. Las grabaciones, fotografías o publicaciones identificables requieren autorización.",
+  aval: "Aval ético y consentimientos aplicables verificados",
+  avalNota: "Iniciar la observación tras la confirmación.",
+  instrucciones: [
+    "Complete los datos de la visita que observa. V1 se realiza antes del rediseño y V2 durante la implementación.",
+    "Use la escala de cada tabla y anote qué observó o revisó. En O4, describa las condiciones de la sesión.",
+    "Converse con la persona docente y registre el acuerdo de mejora.",
+  ],
+  instruccionesNota:
+    "Use NO si falta evidencia y NA si 2.5 o un criterio de O3 no aplica. Para (P), consulte la planificación, los materiales o el diálogo.",
+};
+
+export const TEXTOS = {
+  o4: "Registre las condiciones de esta sesión que ayuden a interpretar lo observado y a orientar los apoyos.",
+  preguntas:
+    "Formule las preguntas en el diálogo posterior y registre la perspectiva de la persona docente. Las respuestas orientan los acuerdos. Use las preguntas 5 y 6 cuando la IA guarde relación con la experiencia.",
+  preguntasIa: "Preguntas complementarias sobre IA (cuando corresponda)",
+  sintesisTitulo: "Síntesis descriptiva y acuerdos de acompañamiento",
+  sintesis:
+    "Esta síntesis describe la práctica observada y las necesidades de acompañamiento. No clasifica globalmente a la persona docente a partir de una sola sesión. Los apoyos se acuerdan con la persona docente según los criterios priorizados y las condiciones del caso.",
+};

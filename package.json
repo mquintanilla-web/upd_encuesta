@@ -17,6 +17,7 @@
     "@neon/env": "^2.1.10",
     "@neondatabase/serverless": "^1.2.1",
     "next": "16.4.6",
+    "pdfkit": "^0.21.0",
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "recharts": "^3.11.1",
@@ -26,6 +27,7 @@
   "devDependencies": {
     "@tailwindcss/turbopack": "4.3.3",
     "@types/node": "^20",
+    "@types/pdfkit": "^0.17.7",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "dotenv": "^18.0.10",

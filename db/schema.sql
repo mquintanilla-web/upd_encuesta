@@ -26,7 +26,8 @@ CREATE TABLE IF NOT EXISTS observations (
   comparacion_v1_v2 TEXT,
   diferencias TEXT,
   sintesis JSONB,
-  clasificacion TEXT
+  clasificacion TEXT,
+  firma TEXT
 );
 
 CREATE TABLE IF NOT EXISTS scores (
@@ -56,3 +57,6 @@ CREATE TABLE IF NOT EXISTS respuestas_abiertas (
 
 CREATE INDEX IF NOT EXISTS scores_criterio_idx ON scores (criterio);
 CREATE INDEX IF NOT EXISTS obs_momento_ies_mod_idx ON observations (momento, ies_id, modalidad);
+
+-- Firma de quien inicia la observación (PNG en base64). Nunca se incluye en agregados ni en el Excel.
+ALTER TABLE observations ADD COLUMN IF NOT EXISTS firma TEXT;
