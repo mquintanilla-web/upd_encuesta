@@ -1,4 +1,5 @@
 import { NextRequest } from "next/server";
+import { tokenPdf } from "@/lib/acceso";
 import { guardarObservacion } from "@/lib/guardar";
 import { observacionSchema } from "@/lib/validacion";
 
@@ -46,7 +47,7 @@ export async function POST(req: NextRequest) {
   try {
     const r = await guardarObservacion(parsed.data);
     if (!r) return Response.json({ ok: false, campos: { ies_codigo: "IES desconocida" } }, { status: 422 });
-    return Response.json({ ok: true, id: r.id }, { status: 201 });
+    return Response.json({ ok: true, id: r.id, pdf: `/api/pdf?id=${r.id}&t=${tokenPdf(r.id)}` }, { status: 201 });
   } catch (e) {
     console.error(e);
     return Response.json({ ok: false, error: "No se pudo guardar" }, { status: 500 });

@@ -102,7 +102,7 @@ export default function Formulario() {
   const [ies, setIes] = useState<IesOpt[]>([]);
   const [enviando, setEnviando] = useState(false);
   const [listo, setListo] = useState(false);
-  const [guardadoId, setGuardadoId] = useState<number | null>(null);
+  const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const [falla, setFalla] = useState("");
   const trampa = useRef<HTMLInputElement>(null);
   const tope = useRef<HTMLDivElement>(null);
@@ -197,7 +197,7 @@ export default function Formulario() {
       const j = await r.json().catch(() => ({}));
       if (r.ok) {
         try { localStorage.removeItem(CLAVE); } catch {}
-        setGuardadoId(typeof j.id === "number" ? j.id : null);
+        setPdfUrl(typeof j.pdf === "string" ? j.pdf : null);
         setListo(true);
       } else if (r.status === 422 && j.campos) {
         const primero = Object.keys(j.campos)[0] ?? "";
@@ -220,7 +220,7 @@ export default function Formulario() {
     setErr({});
     setPaso(0);
     setListo(false);
-    setGuardadoId(null);
+    setPdfUrl(null);
   };
 
   if (listo) {
@@ -231,9 +231,9 @@ export default function Formulario() {
             <svg viewBox="0 0 24 24" className="h-8 w-8" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="m5 12 5 5 9-10" /></svg>
           </span>
           <h2 className="text-xl font-medium text-primary">Observación guardada</h2>
-          {guardadoId && (
+          {pdfUrl && (
             <a
-              href={`/api/pdf?id=${guardadoId}`}
+              href={pdfUrl}
               className="inline-flex h-12 items-center gap-2 rounded-xl border border-primary px-6 text-sm font-medium text-primary transition hover:bg-mist/50 active:scale-[.98]"
             >
               <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3v12m0 0 4-4m-4 4-4-4M5 21h14" /></svg>

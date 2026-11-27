@@ -4,6 +4,7 @@ import Image from "next/image";
 import { useEffect, useState } from "react";
 import type { Resultados } from "@/lib/resultados";
 import { MODALIDADES, MOMENTOS } from "@/lib/criterios";
+import { ExportarPdf } from "./descarga";
 import {
   ClasificacionIes,
   Distribucion,
@@ -84,15 +85,7 @@ export default function ResultadosPage() {
             <option value="">Todas las modalidades</option>
             {MODALIDADES.map((m) => <option key={m}>{m}</option>)}
           </select>
-          <a
-            href={`/api/pdf${qs ? `?${qs}` : ""}`}
-            className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-primary bg-white px-4 text-sm font-medium text-primary transition hover:bg-mist/50 active:scale-[.98]"
-          >
-            <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8zM14 3v5h5" />
-            </svg>
-            Exportar PDF
-          </a>
+          <ExportarPdf qs={qs} />
           <a
             href={`/api/exportar${qs ? `?${qs}` : ""}`}
             className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-primary px-4 text-sm font-medium text-white transition hover:bg-primary-dark active:scale-[.98]"

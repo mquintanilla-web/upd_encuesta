@@ -1,8 +1,10 @@
 import { NextRequest } from "next/server";
+import { bloqueada, claveValida, registrarFallo, tokenValido } from "@/lib/acceso";
 import { cargarDatos, crearPdf } from "@/lib/pdf";
 import { leerFiltros } from "@/lib/resultados";
 
-// ?id=N  -> una observación.  Sin id -> todas las que cumplan los filtros (ies, momento, modalidad).
+// ?id=N&t=TOKEN -> una observación, con el enlace firmado que recibe quien la envía.
+// Con el encabezado x-clave (código de acceso) -> una observación (?id=N) o todas (filtros ies, momento, modalidad).
 export async function GET(req: NextRequest) {
   const p = req.nextUrl.searchParams;
   const idTxt = p.get("id");
@@ -10,6 +12,15 @@ export async function GET(req: NextRequest) {
   if (idTxt && (!Number.isInteger(id) || (id as number) < 1))
     return Response.json({ error: "id no válido" }, { status: 400 });
   const filtros = leerFiltros(p);
+
+  const ip = req.headers.get("x-forwarded-for")?.split(",")[0].trim() ?? "local";
+  if (bloqueada(ip)) return Response.json({ error: "Demasiados intentos" }, { status: 429 });
+
+  const conEnlace = id !== null && tokenValido(id, p.get("t"));
+  if (!conEnlace && !claveValida(req.headers.get("x-clave"))) {
+    registrarFallo(ip);
+    return Response.json({ error: "Código incorrecto" }, { status: 401 });
+  }
 
   try {
     const datos = await cargarDatos(id ? { id } : { filtros });
