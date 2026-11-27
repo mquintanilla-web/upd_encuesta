@@ -15,7 +15,7 @@ import type { Resultados } from "@/lib/resultados";
 import { O1, O2, O3 } from "@/lib/instrumento";
 
 const NOMBRES = new Map([...O1.criterios, ...O2.criterios, ...O3.criterios].map((c) => [c.id, c.nombre]));
-const conNombre = (id: unknown) => (NOMBRES.get(String(id)) ? `${id} · ${NOMBRES.get(String(id))}` : String(id));
+export const conNombre = (id: unknown) => (NOMBRES.get(String(id)) ? `${id} · ${NOMBRES.get(String(id))}` : String(id));
 
 export const COLORES = {
   v1: "#9db9cf",
@@ -32,8 +32,8 @@ const CLASIF_CORTA: Record<string, string> = {
   "Integración en desarrollo": "En desarrollo",
   "Evidencia insuficiente": "Insuficiente",
 };
-const EJE = { fontSize: 12, fill: "#27374d" };
-const TOOLTIP = {
+export const EJE = { fontSize: 12, fill: "#27374d" };
+export const TOOLTIP = {
   contentStyle: { borderRadius: 12, border: "1px solid #dde6ed", boxShadow: "none", fontSize: 12 },
   cursor: { fill: "#dde6ed55" },
 };
@@ -69,7 +69,7 @@ export function Panel({ titulo, info, children, className = "" }: { titulo: stri
   );
 }
 
-const Alto = ({ children, h = 260 }: { children: ReactNode; h?: number }) => (
+export const Alto = ({ children, h = 260 }: { children: ReactNode; h?: number }) => (
   <div style={{ height: h }} className="w-full">
     <ResponsiveContainer width="100%" height="100%">
       {children as React.ReactElement}

@@ -3,12 +3,17 @@
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import { MODALIDADES, MOMENTOS } from "@/lib/criterios";
-import { COMPARACION, ENCABEZADO, O1, O2, O3, O4, PREGUNTAS, SINTESIS, TEXTOS, type Dimension } from "@/lib/instrumento";
-import { Area, Aviso, Campo, Chips, FirmaPad, Texto, TarjetaCriterio, type Score } from "./ui";
+import {
+  COMPARACION, ENCABEZADO, NIVELES, O1, O2, O3, O4, PREGUNTAS, SINTESIS, TEXTOS,
+  type Criterio, type Dimension, type ItemCondicion,
+} from "@/lib/instrumento";
+import { Area, Aviso, Campo, Chips, FirmaPad, OpcionTarjeta, Plegable, Texto, type Score } from "./ui";
 
 type Cond = { opcion: string; origen: string[]; descripcion: string };
 type Estado = {
   aval: boolean | null;
+  /** Momento (ms) en que se confirmó el aval: marca el inicio de la observación. */
+  inicioTs: number | null;
   firma: string;
   ies: string;
   docente: string;
@@ -17,8 +22,6 @@ type Estado = {
   catedra: string;
   momento: string;
   fecha: string;
-  inicio: string;
-  cierre: string;
   modalidad: string;
   tarea: string;
   metodologia: string;
@@ -33,17 +36,45 @@ type Estado = {
 type Errores = Record<string, string>;
 type IesOpt = { codigo: string; nombre: string };
 
-const CLAVE = "upd-i03-borrador";
-const PASOS = ["Visita", "O1", "O2", "O3", "O4", "Diálogo", "Evidencia", "Síntesis"] as const;
-const DIMS: Record<number, Dimension> = { 1: O1, 2: O2, 3: O3 };
+// Una pantalla por pregunta.
+type Pantalla =
+  | { t: "visita" }
+  | { t: "criterio"; dim: Dimension; c: Criterio }
+  | { t: "cond"; item: ItemCondicion }
+  | { t: "pregunta"; i: number }
+  | { t: "evidencia" }
+  | { t: "sintesis" };
+
+const SECCIONES = ["Visita", "O1", "O2", "O3", "O4", "Diálogo", "Evidencia", "Síntesis"] as const;
+const PANTALLAS: Pantalla[] = [
+  { t: "visita" },
+  ...[O1, O2, O3].flatMap((dim) => dim.criterios.map((c) => ({ t: "criterio", dim, c }) as Pantalla)),
+  ...O4.map((item) => ({ t: "cond", item }) as Pantalla),
+  ...PREGUNTAS.map((_, i) => ({ t: "pregunta", i }) as Pantalla),
+  { t: "evidencia" },
+  { t: "sintesis" },
+];
+const seccionDe = (p: Pantalla) =>
+  p.t === "visita" ? 0 : p.t === "criterio" ? Number(p.dim.id[1]) : p.t === "cond" ? 4 : p.t === "pregunta" ? 5 : p.t === "evidencia" ? 6 : 7;
+const SEC_INICIO = SECCIONES.map((_, s) => PANTALLAS.findIndex((p) => seccionDe(p) === s));
+const SEC_TOTAL = SECCIONES.map((_, s) => PANTALLAS.filter((p) => seccionDe(p) === s).length);
+
+const CLAVE = "upd-i03-borrador-v2";
+const AVANCE_MS = 450;
+const ahora = () => Date.now();
+
 
 const hoy = () => {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 };
+const hhmm = (ms: number) => {
+  const d = new Date(ms);
+  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+};
 const vacio = (): Estado => ({
-  aval: null, firma: "", ies: "", docente: "", mentor: "", asignatura: "", catedra: "", momento: "", fecha: hoy(),
-  inicio: "", cierre: "", modalidad: "", tarea: "", metodologia: "",
+  aval: null, inicioTs: null, firma: "", ies: "", docente: "", mentor: "", asignatura: "", catedra: "", momento: "", fecha: hoy(),
+  modalidad: "", tarea: "", metodologia: "",
   scores: Object.fromEntries([...O1.criterios, ...O2.criterios, ...O3.criterios].map((c) => [c.id, { estado: null, nivel: null, evidencia: "" }])),
   cond: Object.fromEntries(O4.map((i) => [i.item, { opcion: "", origen: [], descripcion: "" }])),
   resp: PREGUNTAS.map(() => ""),
@@ -55,44 +86,29 @@ function cargar(): { e: Estado; paso: number } {
     const raw = localStorage.getItem(CLAVE);
     if (raw) {
       const j = JSON.parse(raw);
-      return { e: { ...vacio(), ...j.e }, paso: Math.min(j.paso ?? 0, PASOS.length - 1) };
+      return { e: { ...vacio(), ...j.e }, paso: Math.min(j.paso ?? 0, PANTALLAS.length - 1) };
     }
   } catch {}
   return { e: vacio(), paso: 0 };
 }
 
-const minutos = (a: string, b: string) => {
-  if (!a || !b) return null;
-  const [h1, m1] = a.split(":").map(Number);
-  const [h2, m2] = b.split(":").map(Number);
-  const d = h2 * 60 + m2 - (h1 * 60 + m1);
-  return d > 0 ? d : null;
-};
-
-function validar(paso: number, e: Estado): Errores {
+function validar(p: Pantalla, e: Estado): Errores {
   const er: Errores = {};
   const req = (k: keyof Estado, v: string) => { if (!v.trim()) er[k] = "Requerido"; };
-  if (paso === 0) {
+  if (p.t === "visita") {
     if (e.aval === null) er.aval = "Confirma el aval ético";
     else if (e.aval === false) er.aval = "Sin aval ético no se puede continuar";
     if (e.aval === true && !e.firma) er.firma = "Firma requerida";
     req("ies", e.ies); req("docente", e.docente); req("mentor", e.mentor); req("asignatura", e.asignatura);
-    req("catedra", e.catedra); req("momento", e.momento); req("fecha", e.fecha); req("inicio", e.inicio);
+    req("catedra", e.catedra); req("momento", e.momento); req("fecha", e.fecha);
     req("modalidad", e.modalidad); req("tarea", e.tarea);
-    if (!er.cierre && !e.cierre) er.cierre = "Requerido";
-    else if (e.inicio && e.cierre && !minutos(e.inicio, e.cierre)) er.cierre = "Debe ser posterior al inicio";
-  } else if (paso >= 1 && paso <= 3) {
-    for (const c of DIMS[paso].criterios) if (e.scores[c.id].estado === null) er[c.id] = "Elige un nivel, NO" + (c.na ? " o NA" : "");
-  } else if (paso === 4) {
-    for (const i of O4) if (!e.cond[i.item].opcion) er[i.item] = "Elige una opción";
+  } else if (p.t === "criterio") {
+    if (e.scores[p.c.id].estado === null) er[p.c.id] = "Elige un nivel, NO" + (p.c.na ? " o NA" : "");
+  } else if (p.t === "cond") {
+    if (!e.cond[p.item.item].opcion) er[p.item.item] = "Elige una opción";
   }
   return er;
 }
-
-const PASO_DE: Record<string, number> = {
-  aval_etico: 0, firma: 0, ies_codigo: 0, codigo_docente: 0, codigo_mentor: 0, asignatura: 0, codigo_catedra: 0, momento: 0,
-  fecha: 0, hora_inicio: 0, hora_cierre: 0, modalidad: 0, tarea_resultado: 0,
-};
 
 export default function Formulario() {
   const [ini] = useState(cargar);
@@ -104,8 +120,13 @@ export default function Formulario() {
   const [listo, setListo] = useState(false);
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const [falla, setFalla] = useState("");
+  const [abiertos, setAbiertos] = useState<Record<string, boolean>>({});
   const trampa = useRef<HTMLInputElement>(null);
   const tope = useRef<HTMLDivElement>(null);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const pantalla = PANTALLAS[paso];
+  const sec = seccionDe(pantalla);
 
   useEffect(() => {
     fetch("/api/ies").then((r) => r.json()).then(setIes).catch(() => {});
@@ -116,6 +137,25 @@ export default function Formulario() {
       try { localStorage.setItem(CLAVE, JSON.stringify({ e, paso })); } catch {}
     }
   }, [e, paso, listo]);
+
+  const cancelarAvance = () => {
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = null;
+  };
+  const ir = (n: number) => {
+    cancelarAvance();
+    setPaso(Math.max(0, Math.min(PANTALLAS.length - 1, n)));
+    tope.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+  /** Pasa a la siguiente pregunta tras responder, salvo que el usuario ya haya abierto el texto opcional. */
+  const avanzarSolo = (desde: number, abierto: boolean, conTexto: boolean) => {
+    cancelarAvance();
+    if (abierto || conTexto) return;
+    timer.current = setTimeout(() => {
+      setPaso((p) => (p === desde ? p + 1 : p));
+      tope.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, AVANCE_MS);
+  };
 
   const set = <K extends keyof Estado>(k: K, v: Estado[K]) => {
     setE((p) => ({ ...p, [k]: v }));
@@ -129,13 +169,15 @@ export default function Formulario() {
     setE((p) => ({ ...p, cond: { ...p.cond, [item]: { ...p.cond[item], ...c } } }));
     if (err[item]) setErr((p) => ({ ...p, [item]: "" }));
   };
-
-  const ir = (n: number) => {
-    setPaso(n);
-    tope.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  const elegirAval = (v: boolean) => {
+    // La observación inicia al confirmar el aval: ahí empieza a contar el tiempo.
+    const t = ahora();
+    setE((p) => ({ ...p, aval: v, inicioTs: v ? (p.inicioTs ?? t) : p.inicioTs }));
+    if (err.aval) setErr((p) => ({ ...p, aval: "" }));
   };
+
   const siguiente = () => {
-    const er = validar(paso, e);
+    const er = validar(pantalla, e);
     setErr(er);
     if (Object.values(er).some(Boolean)) {
       requestAnimationFrame(() => document.querySelector('[role="alert"]')?.scrollIntoView({ behavior: "smooth", block: "center" }));
@@ -144,20 +186,22 @@ export default function Formulario() {
     ir(paso + 1);
   };
 
-  const duracion = minutos(e.inicio, e.cierre);
   const codigoCaso = [e.ies, e.docente, e.momento, e.catedra].filter(Boolean).join("-");
 
   const enviar = async () => {
-    for (let p = 0; p <= 4; p++) {
-      const er = validar(p, e);
+    for (let i = 0; i < PANTALLAS.length; i++) {
+      const er = validar(PANTALLAS[i], e);
       if (Object.values(er).some(Boolean)) {
         setErr(er);
-        ir(p);
+        ir(i);
         return;
       }
     }
     setEnviando(true);
     setFalla("");
+    // El sistema registra las horas: inicio al confirmar el aval, cierre al enviar.
+    const cierre = ahora();
+    const inicio = e.inicioTs ?? cierre;
     const payload = {
       aval_etico: e.aval,
       firma: e.firma,
@@ -168,8 +212,9 @@ export default function Formulario() {
       codigo_catedra: e.catedra.trim(),
       momento: e.momento,
       fecha: e.fecha,
-      hora_inicio: e.inicio,
-      hora_cierre: e.cierre,
+      hora_inicio: hhmm(inicio),
+      hora_cierre: hhmm(cierre),
+      duracion_min: Math.max(1, Math.round((cierre - inicio) / 60000)),
       modalidad: e.modalidad,
       tarea_resultado: e.tarea.trim(),
       metodologia_recurso: e.metodologia.trim(),
@@ -200,11 +245,10 @@ export default function Formulario() {
         setPdfUrl(typeof j.pdf === "string" ? j.pdf : null);
         setListo(true);
       } else if (r.status === 422 && j.campos) {
-        const primero = Object.keys(j.campos)[0] ?? "";
-        const raiz = primero.split(".")[0];
+        const raiz = (Object.keys(j.campos)[0] ?? "").split(".")[0];
         setErr({ [raiz]: Object.values(j.campos)[0] as string });
         setFalla("Revisa los datos marcados");
-        ir(PASO_DE[raiz] ?? 0);
+        ir(0);
       } else {
         setFalla(r.status === 429 ? "Demasiados envíos, intenta en unos minutos" : "No se pudo guardar. Intenta de nuevo");
       }
@@ -218,6 +262,7 @@ export default function Formulario() {
   const nueva = () => {
     setE(vacio());
     setErr({});
+    setAbiertos({});
     setPaso(0);
     setListo(false);
     setPdfUrl(null);
@@ -248,25 +293,34 @@ export default function Formulario() {
     );
   }
 
+  const ultima = paso === PANTALLAS.length - 1;
+  const posicion = paso - SEC_INICIO[sec] + 1;
+
   return (
     <Marco
       cabecera={
         <div className="mx-auto max-w-2xl px-4 pb-3 sm:px-6">
           <div className="flex items-baseline justify-between text-sm">
-            <span className="font-medium text-primary">{PASOS[paso]}</span>
-            <span className="text-ink/50">{paso + 1} / {PASOS.length}</span>
+            <span className="font-medium text-primary">{SECCIONES[sec]}</span>
+            <span className="text-ink/50">{posicion} / {SEC_TOTAL[sec]}</span>
           </div>
-          <div className="mt-2 flex gap-1" role="progressbar" aria-valuemin={1} aria-valuemax={PASOS.length} aria-valuenow={paso + 1}>
-            {PASOS.map((p, i) => (
-              <button
-                key={p}
-                type="button"
-                aria-label={p}
-                disabled={i > paso}
-                onClick={() => ir(i)}
-                className={`h-1.5 flex-1 rounded-full transition-colors duration-300 ${i <= paso ? "bg-primary" : "bg-mist"} ${i < paso ? "cursor-pointer" : ""}`}
-              />
-            ))}
+          <div className="mt-2 flex gap-1" role="progressbar" aria-valuemin={0} aria-valuemax={PANTALLAS.length - 1} aria-valuenow={paso}>
+            {SECCIONES.map((nombre, s) => {
+              const hechas = Math.max(0, Math.min(SEC_TOTAL[s], paso - SEC_INICIO[s] + (s === sec ? 1 : 0)));
+              const alcanzada = SEC_INICIO[s] <= paso;
+              return (
+                <button
+                  key={nombre}
+                  type="button"
+                  aria-label={nombre}
+                  disabled={!alcanzada}
+                  onClick={() => ir(SEC_INICIO[s])}
+                  className="h-1.5 flex-1 overflow-hidden rounded-full bg-mist"
+                >
+                  <span className="block h-full rounded-full bg-primary transition-all duration-300" style={{ width: `${(hechas / SEC_TOTAL[s]) * 100}%` }} />
+                </button>
+              );
+            })}
           </div>
         </div>
       }
@@ -280,7 +334,7 @@ export default function Formulario() {
           >
             Atrás
           </button>
-          {paso < PASOS.length - 1 ? (
+          {!ultima ? (
             <button type="button" onClick={siguiente} className="h-12 flex-1 rounded-xl bg-primary text-sm font-medium text-white transition hover:bg-primary-dark active:scale-[.98]">
               Siguiente
             </button>
@@ -294,7 +348,7 @@ export default function Formulario() {
     >
       <div ref={tope} className="scroll-mt-32" />
       <div key={paso} className="animate-[entrada_.25s_ease-out] space-y-4">
-        {paso === 0 && (
+        {pantalla.t === "visita" && (
           <div className="space-y-5">
             <Encabezado />
             <div>
@@ -306,7 +360,7 @@ export default function Formulario() {
                     type="button"
                     role="radio"
                     aria-checked={e.aval === v}
-                    onClick={() => set("aval", v)}
+                    onClick={() => elegirAval(v)}
                     className={`h-12 w-24 rounded-xl border text-sm font-medium transition active:scale-[.97] ${
                       e.aval === v ? (v ? "border-primary bg-primary text-white" : "border-[#c2410c] bg-[#c2410c] text-white") : "border-mist bg-white text-ink hover:border-accent"
                     }`}
@@ -351,14 +405,7 @@ export default function Formulario() {
               <Chips opciones={MOMENTOS} valor={e.momento} onChange={(v) => set("momento", v)} error={err.momento} />
             </div>
             <Campo etiqueta="Fecha" error={err.fecha}><Texto type="date" valor={e.fecha} onChange={(v) => set("fecha", v)} error={err.fecha} /></Campo>
-            <div className="grid grid-cols-2 gap-3">
-              <Campo etiqueta="Hora de inicio" error={err.inicio}><Texto type="time" valor={e.inicio} onChange={(v) => set("inicio", v)} error={err.inicio} /></Campo>
-              <Campo etiqueta="Hora de cierre" error={err.cierre}><Texto type="time" valor={e.cierre} onChange={(v) => set("cierre", v)} error={err.cierre} /></Campo>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <Campo etiqueta="Duración de la observación"><div className="flex h-12 items-center rounded-xl bg-mist/50 px-3 text-ink/70">{duracion ? `${duracion} minutos` : "—"}</div></Campo>
-              <Campo etiqueta="Código único del caso"><div className="flex h-12 items-center truncate rounded-xl bg-mist/50 px-3 text-sm text-ink/70">{codigoCaso || "—"}</div></Campo>
-            </div>
+            <Campo etiqueta="Código único del caso"><div className="flex h-12 items-center truncate rounded-xl bg-mist/50 px-3 text-sm text-ink/70">{codigoCaso || "—"}</div></Campo>
 
             <div>
               <span className="mb-1.5 block text-sm font-medium text-ink/80">Modalidad de observación</span>
@@ -369,71 +416,46 @@ export default function Formulario() {
           </div>
         )}
 
-        {paso >= 1 && paso <= 3 && (
-          <>
-            <h2 className="text-base font-semibold uppercase leading-snug tracking-wide text-primary">{DIMS[paso].id}: {DIMS[paso].titulo}</h2>
-            {DIMS[paso].intro && <p className="text-sm leading-relaxed text-ink/70">{DIMS[paso].intro}</p>}
-            {DIMS[paso].criterios.map((c) => (
-              <div key={c.id} className="space-y-4">
-                {c.antes && (
-                  <div className="pt-2">
-                    <h3 className="text-base font-semibold text-ink">{c.antes.titulo}</h3>
-                    <p className="mt-1 text-sm leading-relaxed text-ink/70">{c.antes.texto}</p>
-                  </div>
-                )}
-                <TarjetaCriterio c={c} valor={e.scores[c.id]} onChange={(s) => setScore(c.id, s)} error={err[c.id]} />
-              </div>
-            ))}
-          </>
+        {pantalla.t === "criterio" && (
+          <PCriterio
+            dim={pantalla.dim}
+            c={pantalla.c}
+            s={e.scores[pantalla.c.id]}
+            abierto={!!abiertos[pantalla.c.id]}
+            error={err[pantalla.c.id]}
+            onElegir={(n) => {
+              setScore(pantalla.c.id, n);
+              avanzarSolo(paso, !!abiertos[pantalla.c.id], !!n.evidencia);
+            }}
+            onAbrir={() => { cancelarAvance(); setAbiertos((x) => ({ ...x, [pantalla.c.id]: true })); }}
+            onEvidencia={(v) => { cancelarAvance(); setScore(pantalla.c.id, { ...e.scores[pantalla.c.id], evidencia: v }); }}
+          />
         )}
 
-        {paso === 4 && (
-          <>
-            <h2 className="text-base font-semibold uppercase leading-snug tracking-wide text-primary">O4: Condiciones y ambiente de la sesión (información contextual, no se puntúa)</h2>
-            <p className="text-sm leading-relaxed text-ink/70">{TEXTOS.o4}</p>
-            {O4.map((i) => (
-              <section key={i.item} className={`space-y-3 rounded-2xl border bg-white p-4 sm:p-5 ${err[i.item] ? "border-[#c2410c]" : "border-mist"}`}>
-                <h3 className="flex gap-3 text-base font-medium leading-snug text-ink">
-                  <span className="mt-0.5 flex h-7 min-w-9 items-center justify-center rounded-lg bg-mist px-2 text-xs font-semibold">{i.item}</span>
-                  {i.titulo}
-                </h3>
-                <Chips opciones={i.opciones} valor={e.cond[i.item].opcion} onChange={(v) => setCond(i.item, { opcion: v })} error={err[i.item]} />
-                {i.origen && (
-                  <div>
-                    <span className="mb-1.5 block text-sm text-ink/60">Origen</span>
-                    <Chips
-                      multiple
-                      opciones={i.origen}
-                      valor={e.cond[i.item].origen}
-                      onChange={(v) => {
-                        const a = e.cond[i.item].origen;
-                        setCond(i.item, { origen: a.includes(v) ? a.filter((x) => x !== v) : [...a, v] });
-                      }}
-                    />
-                  </div>
-                )}
-                <Area placeholder="Descripción" valor={e.cond[i.item].descripcion} onChange={(v) => setCond(i.item, { descripcion: v })} filas={2} />
-              </section>
-            ))}
-          </>
+        {pantalla.t === "cond" && (
+          <PCond
+            item={pantalla.item}
+            c={e.cond[pantalla.item.item]}
+            abierto={!!abiertos[pantalla.item.item]}
+            error={err[pantalla.item.item]}
+            onCambio={(parcial, avanzar) => {
+              setCond(pantalla.item.item, parcial);
+              if (avanzar) avanzarSolo(paso, !!abiertos[pantalla.item.item], !!e.cond[pantalla.item.item].descripcion);
+            }}
+            onAbrir={() => { cancelarAvance(); setAbiertos((x) => ({ ...x, [pantalla.item.item]: true })); }}
+            onDescripcion={(v) => { cancelarAvance(); setCond(pantalla.item.item, { descripcion: v }); }}
+          />
         )}
 
-        {paso === 5 && (
-          <>
-            <h2 className="text-base font-semibold uppercase tracking-wide text-primary">Preguntas abiertas</h2>
-            <p className="text-sm leading-relaxed text-ink/70">{TEXTOS.preguntas}</p>
-            {PREGUNTAS.map((p, i) => (
-              <div key={i}>
-                {i === 4 && <h3 className="mb-3 mt-4 text-base font-semibold text-ink">{TEXTOS.preguntasIa}</h3>}
-                <Campo etiqueta={`${i + 1}. ${p}`}>
-                  <Area valor={e.resp[i]} onChange={(v) => setE((x) => ({ ...x, resp: x.resp.map((r, j) => (j === i ? v : r)) }))} filas={3} />
-                </Campo>
-              </div>
-            ))}
-          </>
+        {pantalla.t === "pregunta" && (
+          <PPregunta
+            i={pantalla.i}
+            valor={e.resp[pantalla.i]}
+            onChange={(v) => setE((x) => ({ ...x, resp: x.resp.map((r, j) => (j === pantalla.i ? v : r)) }))}
+          />
         )}
 
-        {paso === 6 && (
+        {pantalla.t === "evidencia" && (
           <div className="space-y-5">
             <Campo etiqueta="Evidencia de aula y material autorizado de esta experiencia"><Area valor={e.evidenciaAula} onChange={(v) => set("evidenciaAula", v)} /></Campo>
             <div>
@@ -444,7 +466,7 @@ export default function Formulario() {
           </div>
         )}
 
-        {paso === 7 && (
+        {pantalla.t === "sintesis" && (
           <div className="space-y-5">
             <h2 className="text-base font-semibold uppercase leading-snug tracking-wide text-primary">{TEXTOS.sintesisTitulo}</h2>
             <p className="text-sm leading-relaxed text-ink/70">{TEXTOS.sintesis}</p>
@@ -467,19 +489,127 @@ export default function Formulario() {
   );
 }
 
-function Marco({ children, cabecera, pie }: { children: React.ReactNode; cabecera?: React.ReactNode; pie?: React.ReactNode }) {
+function PCriterio({ dim, c, s, abierto, error, onElegir, onAbrir, onEvidencia }: {
+  dim: Dimension;
+  c: Criterio;
+  s: Score;
+  abierto: boolean;
+  error?: string;
+  onElegir: (s: Score) => void;
+  onAbrir: () => void;
+  onEvidencia: (v: string) => void;
+}) {
   return (
-    <div className="relative min-h-screen bg-[#f6f9fb] pb-28">
-      <header className="sticky top-0 z-10 border-b border-mist bg-white/95 backdrop-blur">
-        <div className="mx-auto flex max-w-2xl items-center justify-between gap-4 px-4 py-2.5 sm:px-6">
-          <Image src="/logos/upd.svg" alt="UPD" width={150} height={48} className="h-9 w-auto" unoptimized priority />
-          <Image src="/logos/anii.png" alt="ANII" width={249} height={50} className="h-7 w-auto" unoptimized priority />
+    <>
+      <div>
+        <h2 className="text-xs font-semibold uppercase leading-snug tracking-wide text-primary">{dim.id}: {dim.titulo}</h2>
+        {dim.intro && <p className="mt-1.5 text-sm leading-relaxed text-ink/60">{dim.intro}</p>}
+      </div>
+      {c.antes && (
+        <div>
+          <h3 className="text-base font-semibold text-ink">{c.antes.titulo}</h3>
+          <p className="mt-1 text-sm leading-relaxed text-ink/70">{c.antes.texto}</p>
         </div>
-        {cabecera}
-      </header>
-      <main className="mx-auto max-w-2xl px-4 py-5 sm:px-6">{children}</main>
-      {pie && <div className="fixed inset-x-0 bottom-0 z-10 border-t border-mist bg-white/95 backdrop-blur">{pie}</div>}
-    </div>
+      )}
+      <h3 className="text-xl font-semibold leading-snug text-ink">
+        <span className="mr-2 text-primary">{c.id}</span>
+        {c.nombre}
+      </h3>
+      <div role="radiogroup" aria-label={c.nombre} className="space-y-2.5">
+        {NIVELES.map((n, i) => (
+          <OpcionTarjeta
+            key={n}
+            marca={String(i + 1)}
+            titulo={n}
+            texto={c.niveles[i]}
+            activa={s.estado === "valor" && s.nivel === i + 1}
+            onClick={() => onElegir({ ...s, estado: "valor", nivel: i + 1 })}
+          />
+        ))}
+      </div>
+      <div className="flex gap-2">
+        {(c.na ? (["NO", "NA"] as const) : (["NO"] as const)).map((x) => (
+          <button
+            key={x}
+            type="button"
+            aria-pressed={s.estado === x}
+            onClick={() => onElegir({ ...s, estado: x, nivel: null })}
+            className={`h-11 min-w-16 rounded-xl border px-4 text-sm font-medium transition active:scale-[.97] ${
+              s.estado === x ? "border-ink bg-ink text-white" : "border-mist bg-white text-ink/70 hover:border-ink/40"
+            }`}
+          >
+            {x}
+            <span className="ml-1.5 hidden text-xs font-normal opacity-70 sm:inline">{x === "NO" ? "falta evidencia" : "no aplica"}</span>
+          </button>
+        ))}
+      </div>
+      <Aviso texto={error} />
+      <Plegable etiqueta="Evidencia y justificación" valor={s.evidencia} abierto={abierto} onAbrir={onAbrir} onChange={onEvidencia} />
+    </>
+  );
+}
+
+function PCond({ item, c, abierto, error, onCambio, onAbrir, onDescripcion }: {
+  item: ItemCondicion;
+  c: Cond;
+  abierto: boolean;
+  error?: string;
+  onCambio: (parcial: Partial<Cond>, avanzar: boolean) => void;
+  onAbrir: () => void;
+  onDescripcion: (v: string) => void;
+}) {
+  return (
+    <>
+      <div>
+        <h2 className="text-xs font-semibold uppercase leading-snug tracking-wide text-primary">O4: Condiciones y ambiente de la sesión (información contextual, no se puntúa)</h2>
+        <p className="mt-1.5 text-sm leading-relaxed text-ink/60">{TEXTOS.o4}</p>
+      </div>
+      <h3 className="text-xl font-semibold leading-snug text-ink">
+        <span className="mr-2 text-primary">{item.item}</span>
+        {item.titulo}
+      </h3>
+      <div role="radiogroup" aria-label={item.titulo} className="space-y-2.5">
+        {item.opciones.map((o, i) => (
+          <OpcionTarjeta
+            key={o}
+            marca={String.fromCharCode(65 + i)}
+            texto={o}
+            activa={c.opcion === o}
+            // 4.2 pide además el origen: ahí se avanza con Siguiente.
+            onClick={() => onCambio({ opcion: o }, !item.origen)}
+          />
+        ))}
+      </div>
+      <Aviso texto={error} />
+      {item.origen && (
+        <div>
+          <span className="mb-1.5 block text-sm font-medium text-ink/80">Origen</span>
+          <Chips
+            multiple
+            opciones={item.origen}
+            valor={c.origen}
+            onChange={(v) => onCambio({ origen: c.origen.includes(v) ? c.origen.filter((x) => x !== v) : [...c.origen, v] }, false)}
+          />
+        </div>
+      )}
+      <Plegable etiqueta="Descripción" valor={c.descripcion} abierto={abierto} onAbrir={onAbrir} onChange={onDescripcion} />
+    </>
+  );
+}
+
+function PPregunta({ i, valor, onChange }: { i: number; valor: string; onChange: (v: string) => void }) {
+  return (
+    <>
+      <div>
+        <h2 className="text-xs font-semibold uppercase tracking-wide text-primary">{i >= 4 ? TEXTOS.preguntasIa : "Preguntas abiertas"}</h2>
+        {i === 0 && <p className="mt-1.5 text-sm leading-relaxed text-ink/60">{TEXTOS.preguntas}</p>}
+      </div>
+      <h3 className="text-xl font-semibold leading-snug text-ink">
+        <span className="mr-2 text-primary">{i + 1}.</span>
+        {PREGUNTAS[i]}
+      </h3>
+      <Area valor={valor} onChange={onChange} filas={6} />
+    </>
   );
 }
 
@@ -507,6 +637,22 @@ function Encabezado() {
           <p>{ENCABEZADO.instruccionesNota}</p>
         </div>
       </details>
+    </div>
+  );
+}
+
+function Marco({ children, cabecera, pie }: { children: React.ReactNode; cabecera?: React.ReactNode; pie?: React.ReactNode }) {
+  return (
+    <div className="relative min-h-screen bg-[#f6f9fb] pb-28">
+      <header className="sticky top-0 z-10 border-b border-mist bg-white/95 backdrop-blur">
+        <div className="mx-auto flex max-w-2xl items-center justify-between gap-4 px-4 py-2.5 sm:px-6">
+          <Image src="/logos/upd.svg" alt="UPD" width={150} height={48} className="h-9 w-auto" unoptimized priority />
+          <Image src="/logos/anii.png" alt="ANII" width={249} height={50} className="h-7 w-auto" unoptimized priority />
+        </div>
+        {cabecera}
+      </header>
+      <main className="mx-auto max-w-2xl px-4 py-5 sm:px-6">{children}</main>
+      {pie && <div className="fixed inset-x-0 bottom-0 z-10 border-t border-mist bg-white/95 backdrop-blur">{pie}</div>}
     </div>
   );
 }

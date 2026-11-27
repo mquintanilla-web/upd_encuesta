@@ -1,7 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
-import { NIVELES, type Criterio } from "@/lib/instrumento";
+import { useEffect, useRef, type ReactNode } from "react";
 
 export type Score = { estado: "valor" | "NO" | "NA" | null; nivel: number | null; evidencia: string };
 
@@ -76,96 +75,58 @@ export function Chips({ opciones, valor, onChange, multiple = false, error }: {
   );
 }
 
-const TECHO = ["bg-[#c3d2de]", "bg-[#8fb0c9]", "bg-[#0471a3]", "bg-[#094875]"];
-
-export function TarjetaCriterio({ c, valor, onChange, error }: {
-  c: Criterio;
-  valor: Score;
-  onChange: (s: Score) => void;
-  error?: string;
+/** Opción de respuesta como tarjeta con el texto completo (nivel de un criterio u opción de O4). */
+export function OpcionTarjeta({ marca, titulo, texto, activa, onClick }: {
+  marca: string;
+  titulo?: string;
+  texto: string;
+  activa: boolean;
+  onClick: () => void;
 }) {
-  const [hover, setHover] = useState<number | null>(null);
-  const activo = hover ?? (valor.estado === "valor" ? valor.nivel : null);
-  const completado = valor.estado !== null;
-
   return (
-    <section className={`rounded-2xl border bg-white p-4 transition-colors sm:p-5 ${error ? "border-[#c2410c]" : completado ? "border-primary/40" : "border-mist"}`}>
-      <header className="mb-3 flex items-start gap-3">
-        <span className={`mt-0.5 flex h-7 min-w-9 items-center justify-center rounded-lg px-2 text-xs font-semibold transition-colors ${completado ? "bg-primary text-white" : "bg-mist text-ink"}`}>
-          {completado ? (
-            <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="m5 12 5 5 9-10" /></svg>
-          ) : (
-            c.id
-          )}
-        </span>
-        <h3 className="text-base font-medium leading-snug text-ink">{c.nombre}</h3>
-      </header>
-
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-        {NIVELES.map((n, i) => {
-          const sel = valor.estado === "valor" && valor.nivel === i + 1;
-          return (
-            <button
-              key={n}
-              type="button"
-              aria-pressed={sel}
-              onClick={() => onChange({ ...valor, estado: "valor", nivel: i + 1 })}
-              onMouseEnter={() => setHover(i + 1)}
-              onMouseLeave={() => setHover(null)}
-              onFocus={() => setHover(i + 1)}
-              onBlur={() => setHover(null)}
-              className={`flex min-h-16 flex-col items-start justify-center rounded-xl border px-3 py-2 text-left transition active:scale-[.97] ${
-                sel ? "border-primary bg-primary text-white" : "border-mist bg-white text-ink hover:border-accent"
-              }`}
-            >
-              <span className="text-xl font-semibold leading-none">{i + 1}</span>
-              <span className={`mt-1 text-xs ${sel ? "text-white/80" : "text-ink/60"}`}>{n}</span>
-            </button>
-          );
-        })}
-      </div>
-
-      <div
-        className={`grid transition-all duration-300 ${activo ? "mt-3 grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"}`}
-        aria-live="polite"
+    <button
+      type="button"
+      role="radio"
+      aria-checked={activa}
+      onClick={onClick}
+      className={`flex w-full items-start gap-3 rounded-2xl border p-4 text-left transition active:scale-[.99] ${
+        activa ? "border-primary bg-[#eaf1f7] ring-1 ring-primary" : "border-mist bg-white hover:border-accent"
+      }`}
+    >
+      <span
+        className={`mt-0.5 flex h-8 min-w-8 items-center justify-center rounded-lg px-2 text-sm font-semibold transition-colors ${
+          activa ? "bg-primary text-white" : "bg-mist text-ink"
+        }`}
       >
-        <div className="overflow-hidden">
-          {activo && (
-            <p className="flex gap-3 rounded-xl bg-mist/50 p-3 text-sm leading-relaxed text-ink/90">
-              <span className={`mt-1 h-auto w-1 shrink-0 rounded-full ${TECHO[activo - 1]}`} />
-              {c.niveles[activo - 1]}
-            </p>
-          )}
-        </div>
-      </div>
+        {marca}
+      </span>
+      <span className="block">
+        {titulo && <span className="block text-sm font-semibold text-ink">{titulo}</span>}
+        <span className={`block text-[15px] leading-relaxed text-ink/85 ${titulo ? "mt-0.5" : ""}`}>{texto}</span>
+      </span>
+    </button>
+  );
+}
 
-      <div className="mt-3 flex gap-2">
-        {(c.na ? (["NO", "NA"] as const) : (["NO"] as const)).map((e) => (
-          <button
-            key={e}
-            type="button"
-            aria-pressed={valor.estado === e}
-            title={e === "NO" ? "Falta evidencia" : "No aplica"}
-            onClick={() => onChange({ ...valor, estado: e, nivel: null })}
-            className={`h-10 min-w-14 rounded-lg border px-3 text-sm font-medium transition active:scale-[.97] ${
-              valor.estado === e ? "border-ink bg-ink text-white" : "border-mist bg-white text-ink/70 hover:border-ink/40"
-            }`}
-          >
-            {e}
-          </button>
-        ))}
-      </div>
-
-      <Aviso texto={error} />
-
-      <textarea
-        rows={2}
-        placeholder="Evidencia y justificación"
-        value={valor.evidencia}
-        onChange={(e) => onChange({ ...valor, evidencia: e.target.value })}
-        className={`${base} border-mist mt-3 resize-y py-2.5 text-sm`}
-      />
-    </section>
+/** Texto opcional plegado (evidencia o descripción): se abre a petición. */
+export function Plegable({ etiqueta, valor, onChange, abierto, onAbrir }: {
+  etiqueta: string;
+  valor: string;
+  onChange: (v: string) => void;
+  abierto: boolean;
+  onAbrir: () => void;
+}) {
+  if (!abierto && !valor)
+    return (
+      <button type="button" onClick={onAbrir} className="text-sm font-medium text-accent underline-offset-2 hover:underline">
+        + {etiqueta}
+      </button>
+    );
+  return (
+    <div className="animate-[entrada_.2s_ease-out]">
+      <span className="mb-1.5 block text-sm font-medium text-ink/80">{etiqueta}</span>
+      <Area valor={valor} onChange={onChange} filas={3} autoFocus={abierto && !valor} />
+    </div>
   );
 }
 

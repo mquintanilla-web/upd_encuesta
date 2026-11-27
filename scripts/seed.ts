@@ -31,6 +31,33 @@ const METODOLOGIAS = [
 ];
 const RECURSOS = ["Moodle", "Google Classroom", "Kahoot", "Padlet", "Canva", "Genially", "Teams"];
 
+
+// Textos abiertos en español con vocabulario repetido, para que la nube de palabras tenga sentido.
+const pick = <T,>(a: T[]) => faker.helpers.arrayElement(a);
+const ACCIONES = ["trabajo colaborativo", "resolución de problemas", "análisis de casos", "discusión guiada", "elaboración de proyectos", "retroalimentación entre pares", "exposición breve", "debate en grupos"];
+const RECURSOS_T = ["Moodle", "Google Classroom", "Kahoot", "Padlet", "Canva", "Genially", "Teams", "videos", "rúbricas", "foros"];
+const CONDUCTAS = ["participa con iniciativa", "trabaja en equipo", "necesita más acompañamiento", "argumenta sus decisiones", "muestra interés por la tecnología", "enfrenta dificultades de conectividad", "pregunta y propone ideas", "revisa y mejora su trabajo"];
+const NECESIDADES = ["fortalecer la participación activa del estudiantado", "integrar mejor la tecnología con la metodología activa", "mejorar la evaluación formativa y la retroalimentación", "disponer de más tiempo para planificar", "recibir formación en herramientas digitales", "contar con mejor conectividad y dispositivos", "diseñar actividades más contextualizadas", "dar seguimiento al aprendizaje de cada grupo"];
+const BARRERAS = ["la conectividad", "el tiempo", "la formación", "los dispositivos", "la carga de trabajo", "el apoyo institucional", "el número de estudiantes"];
+const CAMBIOS = ["incorporar proyectos con tecnología", "aplicar más retroalimentación formativa", "usar rúbricas compartidas", "planificar actividades colaborativas", "revisar la secuencia didáctica", "trabajar casos del contexto local"];
+const IA_USOS = ["para preparar materiales", "para generar ejemplos", "para contrastar respuestas", "con reglas claras de uso", "con verificación de fuentes", "como apoyo a la redacción"];
+const texto = {
+  evidencia: () => `Se observó ${pick(ACCIONES)} con ${pick(RECURSOS_T)}; el estudiantado ${pick(CONDUCTAS)}.`,
+  tarea: () => `${pick(ACCIONES)[0].toUpperCase()}${pick(ACCIONES).slice(1)} para alcanzar el resultado previsto, apoyada en ${pick(RECURSOS_T)}.`,
+  descripcion: () => `La sesión tuvo ${pick(["buena", "irregular", "limitada"])} ${pick(["conectividad", "participación", "gestión del tiempo", "accesibilidad"])}; ${pick(CONDUCTAS)}.`,
+  respuesta: (i: number) =>
+    [
+      () => `La prioridad es ${pick(NECESIDADES)}.`,
+      () => `Conviene mantener ${pick(ACCIONES)} con ${pick(RECURSOS_T)} y ajustar ${pick(NECESIDADES)}.`,
+      () => `Las barreras principales son ${pick(BARRERAS)} y ${pick(BARRERAS)}; cuenta con apoyo de su mentor.`,
+      () => `Desea trabajar para ${pick(CAMBIOS)} durante el próximo periodo.`,
+      () => `Decidió usar la IA ${pick(IA_USOS)} y ajustaría ${pick(NECESIDADES)}.`,
+      () => `Necesitaría formación en IA ${pick(IA_USOS)} y acompañamiento de su mentor.`,
+    ][i](),
+  sintesis: () => `${pick(ACCIONES)[0].toUpperCase()}${pick(ACCIONES).slice(1)} con ${pick(RECURSOS_T)}; se acordó ${pick(CAMBIOS)}.`,
+  diferencias: () => `Cambió ${pick(["la tarea", "la duración", "la modalidad", "el recurso digital"])} entre V1 y V2; se mantuvo ${pick(ACCIONES)}.`,
+};
+
 const gauss = () => {
   const u = faker.number.float({ min: 1e-9, max: 1 });
   const v = faker.number.float({ min: 0, max: 1 });
@@ -119,7 +146,7 @@ async function main() {
         criterio,
         estado: "valor" as const,
         nivel: clamp(x),
-        evidencia: faker.lorem.sentence(),
+        evidencia: texto.evidencia(),
       };
     });
 
@@ -142,7 +169,7 @@ async function main() {
       hora_inicio: hhmm(inicio),
       hora_cierre: hhmm(fin),
       modalidad: cat.modalidad as ObservacionInput["modalidad"],
-      tarea_resultado: faker.lorem.sentence(),
+      tarea_resultado: texto.tarea(),
       metodologia_recurso: `${faker.helpers.arrayElement(METODOLOGIAS)} · ${faker.helpers.arrayElement(RECURSOS)}`,
       scores,
       condiciones: CONDICIONES_ITEMS.map((item) => ({
@@ -150,18 +177,20 @@ async function main() {
         opcion:
           item === "4.1" ? clima : item === "4.3" ? conectividad : faker.helpers.arrayElement(OPCIONES_CONDICION[item]),
         origen: item === "4.2" ? faker.helpers.arrayElement(["Pedagógico", "Técnico", "Institucional", "Externo"]) : undefined,
-        descripcion: faker.lorem.sentence(),
+        descripcion: texto.descripcion(),
       })),
-      respuestas: [1, 2, 3, 4, 5, 6].map((pregunta) => ({ pregunta, respuesta: faker.lorem.sentences(2) })),
+      respuestas: [1, 2, 3, 4, 5, 6].map((pregunta) => ({ pregunta, respuesta: texto.respuesta(pregunta - 1) })),
       // 8% sin respaldo documental para que aparezca "Evidencia insuficiente".
-      evidencia_aula: faker.datatype.boolean(0.92) ? faker.lorem.sentence() : "",
-      comparacion_v1_v2: m === "V2" ? faker.lorem.sentence() : undefined,
-      diferencias: faker.lorem.sentence(),
+      evidencia_aula: faker.datatype.boolean(0.92) ? texto.evidencia() : "",
+      comparacion_v1_v2: m === "V2" ? pick(["Comparable", "Con diferencias", "Información insuficiente"]) : undefined,
+      diferencias: texto.diferencias(),
       sintesis: {
-        practica: faker.lorem.sentence(),
-        fortalezas: faker.lorem.sentence(),
-        acompanamiento: faker.lorem.sentence(),
-        acuerdos: faker.lorem.sentence(),
+        practica: texto.sintesis(),
+        fortalezas: texto.sintesis(),
+        necesidades: texto.sintesis(),
+        condiciones: texto.descripcion(),
+        apoyos: texto.sintesis(),
+        seguimiento: texto.sintesis(),
       },
     };
 

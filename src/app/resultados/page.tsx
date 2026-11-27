@@ -5,12 +5,12 @@ import { useEffect, useState } from "react";
 import type { Resultados } from "@/lib/resultados";
 import { MODALIDADES, MOMENTOS } from "@/lib/criterios";
 import { ExportarPdf } from "./descarga";
+import { HOJAS, Hoja, type HojaId } from "./hojas";
 import {
   ClasificacionIes,
   Distribucion,
   Esqueleto,
   Evolucion,
-  MapaCalor,
   Panel,
   PorCriterio,
   Promedios,
@@ -30,6 +30,7 @@ export default function ResultadosPage() {
   const [datos, setDatos] = useState<Resultados | null>(null);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState(false);
+  const [hoja, setHoja] = useState<HojaId>("resumen");
 
   useEffect(() => {
     fetch("/api/ies").then((r) => r.json()).then(setIes).catch(() => {});
@@ -97,15 +98,36 @@ export default function ResultadosPage() {
           </a>
         </div>
 
-        {error && (
+        <nav aria-label="Hojas" className="-mx-4 sticky top-0 z-10 overflow-x-auto bg-[#f6f9fb]/95 px-4 py-2 backdrop-blur sm:mx-0 sm:px-0">
+          <div role="tablist" className="flex gap-1.5 sm:flex-wrap">
+            {HOJAS.map((h) => (
+              <button
+                key={h.id}
+                type="button"
+                role="tab"
+                aria-selected={hoja === h.id}
+                onClick={() => setHoja(h.id)}
+                className={`h-10 shrink-0 rounded-full px-4 text-sm font-medium transition active:scale-[.97] ${
+                  hoja === h.id ? "bg-primary text-white" : "bg-white text-ink/70 ring-1 ring-mist hover:text-primary"
+                }`}
+              >
+                {h.nombre}
+              </button>
+            ))}
+          </div>
+        </nav>
+
+        {hoja === "resumen" && error && (
           <div className="rounded-2xl border border-[#f5bc18] bg-[#fff8e1] p-4 text-sm text-ink">
             No se pudieron cargar los datos
           </div>
         )}
 
-        {!datos && cargando && <Esqueleto />}
+        {hoja === "resumen" && !datos && cargando && <Esqueleto />}
 
-        {datos && (
+        {hoja !== "resumen" && <Hoja id={hoja} qs={qs} />}
+
+        {hoja === "resumen" && datos && (
           <div className={`space-y-4 transition-opacity duration-300 ${cargando ? "opacity-50" : "opacity-100"}`}>
             <Tarjetas r={datos.resumen} />
 
@@ -127,13 +149,13 @@ export default function ResultadosPage() {
                   <Panel titulo="Uso de IA por modalidad" info="Porcentaje de observaciones donde se valoró algún criterio de O3. Si los cuatro quedaron en NA, se cuenta como sin IA."><UsoIa filas={datos.usoIa} /></Panel>
                 </div>
 
-                <Panel titulo="IES por criterio" info="Mapa de calor. Cada celda es el promedio de un criterio (columna) en una IES (fila). Más oscuro, mayor nivel. Si hay menos de 3 observaciones, la celda queda vacía."><MapaCalor filas={datos.heatmap} /></Panel>
               </>
             )}
 
-            <Notas />
           </div>
         )}
+
+        <Notas />
       </main>
     </div>
   );

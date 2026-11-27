@@ -14,7 +14,7 @@ function minutos(ini: string, fin: string) {
  */
 export async function guardarObservacion(o: ObservacionInput) {
   const clasificacion = clasificar(o.scores, o.evidencia_aula.trim().length > 0);
-  const duracion = minutos(o.hora_inicio, o.hora_cierre);
+  const duracion = o.duracion_min ?? minutos(o.hora_inicio, o.hora_cierre);
   const scores = o.scores.map((s) => ({
     criterio: s.criterio,
     nivel: s.estado === "valor" ? s.nivel : null,

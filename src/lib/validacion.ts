@@ -30,6 +30,8 @@ export const observacionSchema = z
     fecha: z.iso.date(),
     hora_inicio: hora,
     hora_cierre: hora,
+    // Minutos entre el inicio y el cierre que registra el sistema.
+    duracion_min: z.number().int().min(1).max(4320).optional(),
     modalidad: z.enum(MODALIDADES),
     tarea_resultado: texto().min(1, "Requerido"),
     metodologia_recurso: texto(), // "si lo hubo": puede ir vacío
@@ -63,8 +65,6 @@ export const observacionSchema = z
     for (const [i, c] of o.condiciones.entries())
       if (!OPCIONES_CONDICION[c.item].includes(c.opcion))
         ctx.addIssue({ code: "custom", path: ["condiciones", i, "opcion"], message: "Opción no válida" });
-    if (o.hora_cierre <= o.hora_inicio)
-      ctx.addIssue({ code: "custom", path: ["hora_cierre"], message: "Debe ser posterior al inicio" });
   });
 
 export type ObservacionInput = z.infer<typeof observacionSchema>;
